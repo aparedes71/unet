@@ -90,4 +90,4 @@ class unet (nn.Module):
         x = self.up4(x,x1)
         x = self.final(x)
 
-        return torch.max(x,dim = 1)[0]
+        return torch.max(x,dim = 0)[0]

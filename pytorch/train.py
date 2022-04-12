@@ -45,19 +45,23 @@ val_loader = DataLoader(val_data, batch_size=10, shuffle=False,pin_memory=gpu_en
 def train_step(train_loader,model,criterion,opt,train_losses,train_corr):
     model.train()
     for b,(img,label) in enumerate(train_loader):
+        trn_corr = 0
         if gpu_enabled:
             img = img.cuda()
             label = label.cuda()
         b += 1
         opt.zero_grad()
         y = model(img)
+        batch_corr = (y == label).sum()
+        trn_corr += batch_corr
         loss = criterion(y,torch.squeeze(label,dim=1))
         loss.backward()
         opt.step()
 
-        if b%10 == 0:
-            print(f"Batch : {b} , Train Loss : {loss} Train Acc ")
+        if b%20 == 0:
+            print(f"Batch : {b}  [{b * len(img)}/{len(train_loader.dataset)} ({100. * b / len(train_loader)}%)]  loss: {loss.item():10.8f} accuracy: {trn_corr.item()*100/(64*batch):7.3f}%, Train Loss : {loss} Train Acc : {trn_corr.item()*100/(10*batch)")
     train_losses.append(loss.item())
+    train_corr.append(trn_corr)
 
  
 #simply used to visualize a few examples
@@ -90,7 +94,11 @@ opt = torch.optim.Adam(model.parameters(),lr = 0.001)
 EPOCHS = 2
 
 for epoch in range(EPOCHS):
+    print(f"Epoch : {epoch}")
+    t1= time.time()
     train_step(train_loader,model,criterion,opt,train_losses,train_corr)
+    t2= time.time()
+    print(f"Time for epoch {t2-t1}")
 
 
 #simply used to visualize a few examples
@@ -102,9 +110,19 @@ label = np.squeeze(np.transpose(label_batch[0,...],(1,2,0)),axis=2)
 plot_example(img,label)
 
 with torch.no_grad():
-    y = model(img_batch[0,...].view(-1,...))
+    if gpu_enabled:
+        y = model(img_batch[0,...].view(1,3,224,224).cuda())
+    else:
+        y = model(img_batch[0,...].view(1,3,224,224))
 
-y = deNormalize(np.transpose(y[0,...],(1,2,0)))
+
+print(y.shape)
+if gpu_enabled:
+    y = np.squeeze(y.cpu(),axis = 0)
+else:
+    y = np.squeeze(y,axis = 0)    
 plot_example(y,label)
 
-print(train_losses)
+# Metrics
+plt.plot(range(EPOCHS),train_losses,label="Train Loss",color="blue")
+plt.legend()
