@@ -45,11 +45,12 @@ val_loader = DataLoader(val_data, batch_size=100, shuffle=False,pin_memory=gpu_e
 def train_step(train_loader,model,criterion,opt,train_losses,train_corr):
     model.train()
     for b,(img,label) in enumerate(train_loader):
+        if gpu_enabled:
+            img = img.cuda()
+            label = label.cuda()
         b += 1
         opt.zero_grad()
         y = model(img)
-        print(y.shape)
-        print(torch.squeeze(label,dim=1).shape)
         loss = criterion(y,torch.squeeze(label,dim=1))
         loss.backward()
         opt.step()
@@ -60,10 +61,10 @@ def train_step(train_loader,model,criterion,opt,train_losses,train_corr):
 
  
 #simply used to visualize a few examples
-# for b,(img_batch,label_batch) in enumerate(train_loader):
-#     break
+for b,(img_batch,label_batch) in enumerate(train_loader):
+    break
 
-img = deNormalize(np.transpose(img[0,...],(1,2,0))
+img = deNormalize(np.transpose(img[0,...],(1,2,0)))
 label = np.transpose(label[0,...],(1,2,0))
 
 def plot_example(img,label):
@@ -73,9 +74,7 @@ def plot_example(img,label):
     plt.subplot(1,2,2)
     plt.imshow(label)
 
-
-print(label.shape)
-print(label[0,0,...])
+plot_example(img,label)
 
 if gpu_enabled:
     model = unet(3,20).cuda()
