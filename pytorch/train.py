@@ -55,9 +55,9 @@ def train_step(train_loader,model,criterion,opt,train_losses,train_corr):
         loss.backward()
         opt.step()
 
-        train_losses.append(loss)
         if b%10 == 0:
             print(f"Batch : {b} , Train Loss : {loss} Train Acc ")
+    train_losses.append(loss.item())
 
  
 #simply used to visualize a few examples
