@@ -1,67 +1,93 @@
 
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+class conv_block(nn.Module):
+    def __init__(self,in_features,out_features):
+        super().__init__()        
+        self.double_conv = nn.Sequential(
+            nn.Conv2d(in_features, out_features, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(out_features),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_features, out_features, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(out_features),
+            nn.ReLU(inplace=True)
+        )
+
+    def forward(self, x):
+        return self.double_conv(x)
+
+class final_conv_block(nn.Module):
+    def __init__(self, in_features, out_features):
+        super().__init__()
+        self.conv = nn.Conv2d(in_features, out_features, kernel_size=1)
+
+    def forward(self, x):
+        return self.conv(x)
+
+class downsampling_block(nn.Module):
+
+    def __init__(self, in_features, out_features):
+        super().__init__()
+        self.maxpool_conv = nn.Sequential(
+            nn.MaxPool2d(2),
+            conv_block(in_features, out_features)
+        )
+
+    def forward(self, x):
+        return self.maxpool_conv(x)
+
+class upsampling_block(nn.Module):
+
+    def __init__(self, in_features, out_features):
+        super().__init__()
+        self.up = nn.ConvTranspose2d(in_features, in_features // 2, kernel_size=2, stride=2)
+        self.conv = conv_block(in_features, out_features)
+
+
+    def forward(self, x1, x2):
+        x1 = self.up(x1)
+        # input is CHW
+        diffY = x2.size()[2] - x1.size()[2]
+        diffX = x2.size()[3] - x1.size()[3]
+
+        x1 = F.pad(x1, [diffX // 2, diffX - diffX // 2,
+                        diffY // 2, diffY - diffY // 2])
+
+        x = torch.cat([x2, x1], dim=1)
+        return self.conv(x)     
+
 class unet (nn.Module):
-    def __init__(self,input_features=1):
+    def __init__(self,input_features=1,num_classes=10):
         super().__init__()
         #ENCODER
-        self.conv1 = nn.Conv2d(input_features,64,3,1) #1 feature in indicates grayscale
-        self.conv2 = nn.Conv2d(64,64,3,1)
-        #max pool this output
-        self.conv3 = nn.Conv2d(128,128,3,1)
-        self.conv4 = nn.Conv2d(128,128,3,1)
-        #max pool this output
-        self.conv5 = nn.Conv2d(256,256,3,1)
-        self.conv6 = nn.Conv2d(256,256,3,1) 
-        #max pool this output
-        self.conv7 = nn.Conv2d(512,512,3,1)
-        self.conv8 = nn.Conv2d(512,512,3,1)
-        #max pool this output
-        self.conv9 = nn.Conv2d(1024,1024,3,1)
-        self.conv10 = nn.Conv2d(1024,1024,3,1)
-
-        #DECODER 
-        self.upconv1 = nn.ConvTranspose2d(1024,1024,2,1)
-        self.conv11 = nn.Conv2d(1024,512,3,1)
-        self.conv12 = nn.Conv2d(512,512,3,1)
-
-        self.upconv2 = nn.ConvTranspose2d(512,512,2,1)
-        self.conv13 = nn.Conv2d(512,256,3,1)
-        self.conv14 = nn.Conv2d(256,256,3,1)
-
-        self.upconv3 = nn.ConvTranspose2d(256,256,2,1)
-        self.conv15 = nn.Conv2d(256,128,3,1)
-        self.conv16 = nn.Conv2d(128,128,3,1)
-
-        self.upconv4 = nn.ConvTranspose2d(128,128,2,1)
-        self.conv17 = nn.Conv2d(128,64,3,1)
-        self.conv18 = nn.Conv2d(64,64,3,1)
-
-        self.conv19 = nn.Conv2d(64,2,3,1)
-        self.conv20 = nn.Conv2d(2,1,1,1)
-            
-    def forward(self,X):
-        # ENCODER
-        X = F.relu (self.conv1(X))
-        X1 = X = F.relu (self.conv2(X))
-        X = F.max_pool2d(X,2,2)
-
-        X = F.relu (self.conv3(X))
-        X2 = X = F.relu (self.conv4(X))
-        X = F.max_pool2d(X,2,2)
-
-        X = F.relu (self.conv5(X))
-        X3 = X = F.relu (self.conv6(X))
-        X = F.max_pool2d(X,2,2)
-
-        X = F.relu (self.conv7(X))
-        X4 = X = F.relu (self.conv8(X))
-        X = F.max_pool2d(X,2,2)
-
-        X = F.relu (self.conv9(X))
-        X = F.relu (self.conv10(X))
-        X = F.max_pool2d(X,2,2)
+        self.input_conv = conv_block(input_features, 64)
+        self.down1 = downsampling_block(64,128)
+        self.down2 = downsampling_block(128,256)
+        self.down3 = downsampling_block(256,512)
+        self.down4 = downsampling_block(512,1024)
 
         #DECODER
-        #need to figure proper way of implementing the copy and crop functionality
+        self.up1 = upsampling_block(1024,512)
+        self.up2 = upsampling_block(512,256)
+        self.up3 = upsampling_block(256,128)
+        self.up4 = upsampling_block(128,64)
+
+        self.final = final_conv_block(64,num_classes)
+            
+    def forward(self,x):
+        # ENCODER
+        x1 = self.input_conv(x)
+        x2 = self.down1(x1)
+        x3 = self.down2(x2)
+        x4 = self.down3(x3)
+        x5 = self.down4(x4)
+        #DECODER
+        x = self.up1(x5,x4)
+        x = self.up2(x,x3)
+        x = self.up3(x,x2)
+        x = self.up4(x,x1)
+        x = self.final(x)
+
+        return torch.max(x,dim = 1)[0]
