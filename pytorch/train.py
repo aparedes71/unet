@@ -58,8 +58,8 @@ def train_step(train_loader,model,criterion,opt,train_losses,train_corr):
         loss.backward()
         opt.step()
 
-        if b%20 == 0:
-            print(f"Batch : {b}  [{b * len(img)}/{len(train_loader.dataset)} ({100. * b / len(train_loader)}%)]  loss: {loss.item():10.8f} accuracy: {trn_corr.item()*100/(64*batch):7.3f}%, Train Loss : {loss} Train Acc : {trn_corr.item()*100/(10*batch)")
+        if b%10 == 0:
+            print(f"Batch : {b}  [{b * len(img)}/{len(train_loader.dataset)} ({100. * b / len(train_loader)}%)]  loss: {loss.item():10.8f} accuracy: {trn_corr.item()*100/(64*b):7.3f}%, Train Loss : {loss} Train Acc : {trn_corr.item()*100/(10*b)}")
     train_losses.append(loss.item())
     train_corr.append(trn_corr)
 
@@ -88,7 +88,7 @@ else:
 train_losses = []
 train_corr = []
 
-criterion = torch.nn.CrossEntropyLoss()
+criterion = torch.nn.CrossEntropyLoss() 
 opt = torch.optim.Adam(model.parameters(),lr = 0.001)
 
 EPOCHS = 2
@@ -98,7 +98,7 @@ for epoch in range(EPOCHS):
     t1= time.time()
     train_step(train_loader,model,criterion,opt,train_losses,train_corr)
     t2= time.time()
-    print(f"Time for epoch {t2-t1}")
+    print(f"Time for epoch {t2-t1} seconds")
 
 
 #simply used to visualize a few examples
