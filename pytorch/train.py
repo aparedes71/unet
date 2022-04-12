@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 
 from unet import unet
 
+gpu_enabled = torch.cuda.is_available()
 
 means = [0.485, 0.456, 0.406]  # mean of the imagenet dataset for normalizing
 
@@ -34,8 +35,9 @@ val_data = datasets.VOCSegmentation(root='./Data', image_set='val', download=Tru
 print(train_data)
 print(val_data)
 
-train_loader = DataLoader(train_data, batch_size=10, shuffle=True)
-val_loader = DataLoader(val_data, batch_size=100, shuffle=False)
+
+train_loader = DataLoader(train_data, batch_size=10, shuffle=True,pin_memory=gpu_enabled)
+val_loader = DataLoader(val_data, batch_size=100, shuffle=False,pin_memory=gpu_enabled)
 
 
 #Train step
@@ -56,36 +58,39 @@ def train_step(train_loader,model,criterion,opt,train_losses,train_corr):
         if b%10 == 0:
             print(f"Batch : {b} , Train Loss : {loss} Train Acc ")
 
+ 
+#simply used to visualize a few examples
+# for b,(img_batch,label_batch) in enumerate(train_loader):
+#     break
 
-if __name__ == "__main__":
-    #simply used to visualize a few examples
-    # for b,(img,label) in enumerate(train_loader):
-    #     break
-    # plt.figure()
-    # plt.subplot(2,2,1)
-    # plt.imshow(deNormalize(np.transpose(img[0,...],(1,2,0))))
-    # plt.subplot(2,2,2)
-    # plt.imshow(np.transpose(label[0,...],(1,2,0)))
-    # plt.subplot(2,2,3)
-    # plt.imshow(deNormalize(np.transpose(img[1,...],(1,2,0))))
-    # plt.subplot(2,2,4)
-    # plt.imshow(np.transpose(label[1,...],(1,2,0)))
-    # plt.show()
+img = deNormalize(np.transpose(img[0,...],(1,2,0))
+label = np.transpose(label[0,...],(1,2,0))
 
-    # print(label.shape)
-    # print(label[0,0,...])
+def plot_example(img,label):
+    plt.figure()
+    plt.subplot(1,2,1)
+    plt.imshow(img)
+    plt.subplot(1,2,2)
+    plt.imshow(label)
 
+
+print(label.shape)
+print(label[0,0,...])
+
+if gpu_enabled:
+    model = unet(3,20).cuda()
+else:
     model = unet(3,20)
 
-    train_losses = []
-    train_corr = []
+train_losses = []
+train_corr = []
 
-    criterion = torch.nn.CrossEntropyLoss()
-    opt = torch.optim.Adam(model.parameters(),lr = 0.001)
+criterion = torch.nn.CrossEntropyLoss()
+opt = torch.optim.Adam(model.parameters(),lr = 0.001)
 
-    EPOCHS = 2
+EPOCHS = 2
 
-    for epoch in range(EPOCHS):
-        train_step(train_loader,model,criterion,opt,train_losses,train_corr)
+for epoch in range(EPOCHS):
+    train_step(train_loader,model,criterion,opt,train_losses,train_corr)
 
-    print(train_losses)
+print(train_losses)
