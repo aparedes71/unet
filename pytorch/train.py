@@ -37,7 +37,7 @@ print(val_data)
 
 
 train_loader = DataLoader(train_data, batch_size=10, shuffle=True,pin_memory=gpu_enabled)
-val_loader = DataLoader(val_data, batch_size=100, shuffle=False,pin_memory=gpu_enabled)
+val_loader = DataLoader(val_data, batch_size=10, shuffle=False,pin_memory=gpu_enabled)
 
 
 #Train step
@@ -64,8 +64,8 @@ def train_step(train_loader,model,criterion,opt,train_losses,train_corr):
 for b,(img_batch,label_batch) in enumerate(train_loader):
     break
 
-img = deNormalize(np.transpose(img[0,...],(1,2,0)))
-label = np.transpose(label[0,...],(1,2,0))
+img = deNormalize(np.transpose(img_batch[0,...],(1,2,0)))
+label = np.squeeze(np.transpose(label_batch[0,...],(1,2,0)),axis=2)
 
 def plot_example(img,label):
     plt.figure()
@@ -91,5 +91,20 @@ EPOCHS = 2
 
 for epoch in range(EPOCHS):
     train_step(train_loader,model,criterion,opt,train_losses,train_corr)
+
+
+#simply used to visualize a few examples
+for img_batch,label_batch in val_loader:
+    break
+
+img = deNormalize(np.transpose(img_batch[0,...],(1,2,0)))
+label = np.squeeze(np.transpose(label_batch[0,...],(1,2,0)),axis=2)
+plot_example(img,label)
+
+with torch.no_grad():
+    y = model(img_batch[0,...].view(-1,...))
+
+y = deNormalize(np.transpose(y[0,...],(1,2,0)))
+plot_example(y,label)
 
 print(train_losses)
