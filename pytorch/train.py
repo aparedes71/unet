@@ -25,23 +25,26 @@ def deNormalize(img,means=means,stds=stds):
     denormed = np.stack([red,green,blue],axis=2)
     return denormed
 
-# Generate dataset
-transform = transforms.Compose([transforms.ToTensor(),transforms.Resize((224,224)), transforms.Normalize(means,stds) ])
-transform_target = transforms.Compose([transforms.ToTensor(),transforms.Resize((224,224)) ])
+# # Generate dataset
+# transform = transforms.Compose([transforms.ToTensor(),transforms.Resize((224,224)), transforms.Normalize(means,stds) ])
+# transform_target = transforms.Compose([transforms.ToTensor(),transforms.Resize((224,224)) ])
 
-train_data = datasets.VOCSegmentation(root='./Data', image_set='train', download=True, transform=transform, target_transform=transform_target)
-val_data = datasets.VOCSegmentation(root='./Data', image_set='val', download=True, transform=transform, target_transform=transform_target)
+transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize(means,stds)])
+transform_target = transforms.Compose([transforms.ToTensor()])
 
-print(train_data)
-print(val_data)
+# train_data = datasets.VOCSegmentation(root='./Data', image_set='train', download=True, transform=transform, target_transform=transform_target)
+# val_data = datasets.VOCSegmentation(root='./Data', image_set='val', download=True, transform=transform, target_transform=transform_target)
+# print(train_data)
+# print(val_data)
 
+# ds = datasets.OxfordIIITPet(root='./Data',split='trainval', download=True, transform=transform, target_transform=transform_target)
+train_data = datasets.Cityscapes(root='./Data',split='train', mode="fine" , target_type="semantic" , transform=transform, target_transform=transform_target)
+val_data = datasets.Cityscapes(root='./Data',split='val', mode="fine" ,  target_type="semantic" , transform=transform, target_transform=transform_target)
 
 train_loader = DataLoader(train_data, batch_size=10, shuffle=True,pin_memory=gpu_enabled)
 val_loader = DataLoader(val_data, batch_size=10, shuffle=False,pin_memory=gpu_enabled)
 
-
 #Train step
-
 def train_step(train_loader,model,criterion,opt,train_losses,train_corr):
     model.train()
     for b,(img,label) in enumerate(train_loader):
